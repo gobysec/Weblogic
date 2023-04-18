@@ -204,6 +204,20 @@ The vulnerabilities and features demonstrated in this article will be launched o
 
 Goby Community Edition can be downloaded and experienced for free at https://gobies.org.
 
+# 0x06 Reference
+
+1. ChatGPT (https://chat.openai.com/chat/f6a82469-574f-46d4-bad7-379877a757b7)
+2. Java CORBA (https://paper.seebug.org/1124/)
+3. RMI-IIOP Programmer's Guide (https://docs.oracle.com/javase/8/docs/technotes/guides/rmi-iiop/rmi_iiop_pg.html)
+4. Tutorial: Getting Started Using RMI-IIOP (https://docs.oracle.com/javase/8/docs/technotes/guides/rmi-iiop/tutorial.html)
+5. Configuring WebLogic Server for RMI-IIOP (https://docs.oracle.com/en/middleware/fusion-middleware/weblogic-server/12.2.1.4/wlrmi/iiop_config.html)
+6. Servers: Protocols: IIOP (https://docs.oracle.com/en/middleware/fusion-middleware/weblogic-server/12.2.1.4/wlach/pagehelp/Corecoreserverserverprotocolsiioptitle.html)
+7. Weblogic IIOP 协议NAT ⽹络绕过 | R4v3zn's Blog(https://www.r4v3zn.com/posts/144eb4b6/#more)
+8. 漫谈 WebLogic CVE-2020-2551 | R4v3zn's Blog(https://www.r4v3zn.com/posts/b64d9185/#more)
+9. Weblogic CVE-2020-2551 绕过NAT⽹络分析 - 先知社区 (https://xz.aliyun.com/t/11825)
+10.【协议森林】详解⼤端(big endian)与⼩端(little endian)_协议森林的博客(https://blog.csdn.net/u012503639/article/details/104084052)
+11. 基于RapidIO的GIOP协议——RIO-IOP - 中国知⽹(https://kns.cnki.net/kcms2/article/abstract?v=3uoqIhG8C44YLTlOAiTRKgchrJ08w1e7fm4X_1ttJAnwAlx1h65p9pncnSo-KzIbXZvSeFDplMDRZRN77n23eO99ylku0fqz&uniplatform=NZKPT)
+
 
 Author: 14m3ta7k
 
