@@ -1,0 +1,223 @@
+# Research on WebLogic After-Deserialization
+# overview
+
+In recent years, Weblogic deserialization vulnerabilities have been discovered and focused on the triggering point of deserialization. However, there are many points that involve deserialization but cannot be exploited in real-time, which are easily overlooked during regular vulnerability research. There have been further discussions in the industry about "post-deserialization" vulnerabilities, where seemingly unexploitable vulnerabilities can actually be exploited through subsequent techniques. For example, if the vulnerability is not triggered after performing a `bind()` or `rebind()` operation, you can try other methods such as `lookup()` or` lookupLink()` to trigger the vulnerability.
+
+Using this approach, we have discovered two Weblogic post-deserialization vulnerabilities (CVE-2023-21931, CVE-2023-21839), which have been officially confirmed by Oracle. In this article, we will use these two Weblogic vulnerabilities as examples to share the thought process behind exploiting post-deserialization vulnerabilities. We believe that there are many similar vulnerabilities that will be gradually discovered in the future, and we hope this article can provide some inspiration for researchers.
+
+# Deserialization vulnerability
+
+![](https://s3.bmp.ovh/imgs/2023/04/18/3dab24366900bd07.png)
+
+The approach for exploiting Weblogic deserialization vulnerabilities involves manipulating maliciously crafted serialized data using deserialization methods such as `readObject()`, `readResolve()`, `readExternal()`, etc. to achieve the attacker's goals. Conventional vulnerability research focuses on exploiting Weblogic during the deserialization process, while ignoring the post-deserialization phase. The post-deserialization vulnerability research focuses on identifying vulnerabilities triggered by certain operations or events after the deserialization process is completed.
+
+In Weblogic, if no vulnerabilities are triggered after `bind()` or `rebind()` operations, other methods such as `lookup()` and `lookupLink()` can be attempted to trigger the vulnerability.
+
+This article will analyze the attack process and provide examples of post-deserialization vulnerabilities in Weblogic, focusing on the `lookup()` method as the vulnerability trigger.
+
+# lookup
+
+By tracing the call stack, we found the following process of the `lookup()` method:
+
+- After receiving a request, Weblogic parses the incoming data using the `invoke()` method in the `BasicServerRef` class.
+
+- Using the `_invoke()` method, Weblogic executes the `resolve_any()` method based on the passed-in method name of `resolve_any`.
+
+- In the `resolve_any()` method, the incoming binding name is resolved using the `resolveObject()` method.
+
+- In the `resolveObject()` method, the `lookup()` method is called based on the context information.
+
+- Based on the context information, a series of `lookup()` method calls are made in classes such as `WLContextImpl`, `WLEventContextImpl`, `RootNamingNode`, `ServerNamingNode`, and `BasicNamingNode`, resulting in the `resolveObject()` method call in the `BasicNamingNode` class.
+
+- Since the `obj` passed into the `resolveObject()` method is not an instance of the `NamingNode` class and the `mode` value defaults to 1, the `getObjectInstance()` method in the `WLNamingManager` class is called.
+
+![](https://s3.bmp.ovh/imgs/2023/04/18/677b86cf8b323920.png)
+
+Finally, it can be seen that the `getObjectInstance()` method in the `WLNamingManager` class calls the `getReferent()` method in the passed-in object based on the object interface type, completing the invocation of the `lookup()` method in the vulnerability trigger point. In fact, both CVE vulnerabilities are triggered through the two branches of `getObjectInstance()`.
+
+# CVE-2023-21931
+
+The vulnerability trigger point of CVE-2023-21931 is in the `getObjectInstance()` method of the `WLNamingManager` class. When the passed-in `boundObject` object is an implementation class of `LinkRef`, the `getLinkName()` method of the passed-in object `boundObject` is called, and the `lookup()` method is used to perform remote JNDI loading on the `linkAddrType` address returned by the `getLinkName()` method. When instantiating the `LinkRef` class, a JNDI address can be passed to the `linkAddrType` through the constructor of the class. In this way, we can call the `lookup()` method to remotely load a custom JNDI address and achieve the goal of the attack.
+
+```java
+package weblogic.jndi.internal;
+public final class WLNamingManager {
+    public static Object getObjectInstance(Object boundObject, Name name, Context ctx, Hashtable env) throws NamingException {
+        if (boundObject instanceof ClassTypeOpaqueReference) {
+						......
+        } else if (boundObject instanceof LinkRef) {
+            String linkName = ((LinkRef)boundObject).getLinkName();
+            InitialContext ic = null;
+            try {
+                ic = new InitialContext(env);
+                boundObject = ic.lookup(linkName);  // vulnerability trigger point
+            } catch (NamingException var15) {
+              ......
+            } finally {......}
+        }
+    }
+}
+```
+
+The vulnerability lies in the construction of a JNDI address within the `LinkRef` class, which is a native Java class. By using the constructor of the `LinkRef` class, we can control the value of the `linkAddrType` variable and then use the `getLinkName()` method to return the `linkAddrType` as a string.
+
+```java
+package javax.naming;
+public class LinkRef extends Reference {
+    static final String linkClassName = LinkRef.class.getName();
+    static final String linkAddrType = "LinkAddress";
+
+    public LinkRef(Name linkName) {
+        super(linkClassName, new StringRefAddr(linkAddrType, linkName.toString()));
+    }
+
+    public LinkRef(String linkName) {
+        super(linkClassName, new StringRefAddr(linkAddrType, linkName));
+    }
+
+    public String getLinkName() throws NamingException {
+        if (className != null && className.equals(linkClassName)) {
+            RefAddr addr = get(linkAddrType);
+            if (addr != null && addr instanceof StringRefAddr) {
+                return (String)((StringRefAddr)addr).getContent();
+            }
+        }
+        throw new MalformedLinkException();
+    }
+}
+```
+
+![](https://s3.bmp.ovh/imgs/2023/04/18/25e5b79dffc329bc.png)
+
+During the aforementioned process, the `rebind()` and `lookup()` methods' deserialization processes do not execute malicious operations. Instead, after completing the deserialization process, the vulnerability is triggered by calling the `lookup()` method of the `getObjectInstance()` method in the `WLNamingManager` class to perform a remote malicious loading of the JNDI address.
+
+We have integrated the CVE-2023-21931 vulnerability in GOBY and added functionality for command execution and shell access. A demo of the exploit is shown below:
+
+![](https://s3.bmp.ovh/imgs/2023/04/18/3fe32a1ad6838c06.gif)
+
+# CVE-2023-21839
+
+`ForeignOpaqueReference` is an implementation class of the `OpaqueReference` interface. Two private variables, `jndiEnvironment` and `remoteJNDIName`, are declared in the `ForeignOpaqueReference` class, and two constructors are also declared. In the parameterized constructor, `env` and `remoteJNDIName` are received and assigned to the above two private class variables, respectively.
+
+The `getReferent()` method in the `ForeignOpaqueReference` class is an implementation method of the `OpaqueReference` interface. In the `getReferent()` method, `retVal = context.lookup(this.remoteJNDIName);` performs a remote loading of the JNDI address in the `remoteJNDIName` variable of this class, which leads to the deserialization vulnerability.
+
+```java
+package weblogic.jndi.internal;
+public class ForeignOpaqueReference implements OpaqueReference, Serializable {
+    private Hashtable jndiEnvironment;
+    private String remoteJNDIName;
+        ......
+    public ForeignOpaqueReference(String remoteJNDIName, Hashtable env) {
+        this.remoteJNDIName = remoteJNDIName;
+        this.jndiEnvironment = env;
+    }
+    public Object getReferent(Name name, Context ctx) throws NamingException {
+        InitialContext context;
+        if (this.jndiEnvironment == null) {
+            context = new InitialContext();
+        } else {
+            Hashtable properties = this.decrypt();
+            context = new InitialContext(properties);
+        }
+        Object retVal;
+        try {
+            retVal = context.lookup(this.remoteJNDIName);   // vulnerability point
+        } finally {
+            context.close();
+        }
+        return retVal;
+    }
+    ......
+}
+```
+
+**Analysis of the getReferent() method invocation**
+
+```java
+package weblogic.jndi;
+public interface OpaqueReference {
+    Object getReferent(Name var1, Context var2) throws NamingException;
+    String toString();
+}
+```
+
+The `OpaqueReference` interface has two abstract methods: `getReferent()` and `toString()`.
+
+The `getReferent()` method in the `ForeignOpaqueReference` class is called in the `WLNamingManager` class.
+
+In the `getObjectInstance()` method of the `WLNamingManager` class, if the passed-in `boundObject` object implements the `OpaqueReference` interface, then the object's `getReferent()` method is called as follows: `boundObject = ((OpaqueReference)boundObject).getReferent(name, ctx);`.
+
+As mentioned above, the `ForeignOpaqueReference` class implements the `OpaqueReference` interface, so its `getReferent()` method is called, leading to a deserialization vulnerability.
+
+```java
+package weblogic.jndi.internal;
+public final class WLNamingManager {
+	public static Object getObjectInstance(Object boundObject, Name name, Context ctx, Hashtable env) throws NamingException {
+        if (boundObject instanceof ClassTypeOpaqueReference) {
+						......
+        } else if (boundObject instanceof OpaqueReference) {
+            boundObject = ((OpaqueReference)boundObject).getReferent(name, ctx);
+        } else if (boundObject instanceof LinkRef) {
+      ...
+        }
+    }
+}
+```
+
+![](https://s3.bmp.ovh/imgs/2023/04/18/ebbe68adf917c009.png)
+
+Similar to the CVE-2023-21931 vulnerability, CVE-2023-21839 does not execute any malicious operations during the deserialization process. Instead, the vulnerability is triggered by calling the `lookup()` method in the `getReferent()` method of the `ForeignOpaqueReference` class after the deserialization process is completed.
+
+We have integrated the CVE-2023-21839 vulnerability in GOBY and added functionality for command execution and shell access. Below is a demo of the exploit:
+
+![](https://s3.bmp.ovh/imgs/2023/04/18/599bc402ba0a186b.gif)
+
+
+
+# timeline
+
+CVE-2023-21931:
+
+- August 12, 2022: Vulnerability reported to official channels
+- August 19, 2022: Vulnerability officially confirmed
+- April 18, 2023: Vulnerability officially fixed
+
+CVE-2023-21839:
+
+- July 31, 2022: Vulnerability reported to official channels
+- August 5, 2022: Vulnerability officially confirmed
+- January 16, 2023: Vulnerability officially fixed
+
+# research environment
+
+Vulfocus WebLogic environment
+
+```bash
+docker pull vulfocus/vcpe-1.0-a-oracle-weblogic:12.2.1.2.0-jdk-release
+docker pull vulfocus/vcpe-1.0-a-oracle-weblogic:12.2.1.1.0-jdk-release
+docker pull vulfocus/vcpe-1.0-a-oracle-weblogic:12.2.1.3.0-jdk-release
+docker pull vulfocus/vcpe-1.0-a-oracle-weblogic:12.2.1.4.0-jdk-release
+docker pull vulfocus/vcpe-1.0-a-oracle-weblogic:12.2.1.0.0-jdk-release
+docker pull vulfocus/vcpe-1.0-a-oracle-weblogic:14.1.1.0.0-jdk-release
+docker pull vulfocus/vcpe-1.0-a-oracle-weblogic:12.1.2.0.0-jdk-release
+docker pull vulfocus/vcpe-1.0-a-oracle-weblogic:12.1.3.0.0-jdk-release
+docker pull vulfocus/vcpe-1.0-a-oracle-weblogic:10.3.6.0-jdk-release
+```
+
+# reference
+
+[Java“后反序列化漏洞”利用思路 - Ruilin (rui0.cn)](http://rui0.cn/archives/1338)
+
+[Ruil1n/after-deserialization-attack: Java After-Deserialization Attack (github.com)](https://github.com/Ruil1n/after-deserialization-attack)
+
+
+**The vulnerabilities and features demonstrated in this article are compatible with Goby version: Beta 2.4.7, which already supports scanning and verification for Goby Red Team and Missed Scan versions. Latest version download experience: https://gobysec.net/** 
+
+Author: 14m3ta7k
+
+If you have a functional type of issue, you can raise an issue on GitHub or in the discussion group below:
+
+GitHub issue: https://github.com/gobysec/Goby/issues
+Telegram Group: http://t.me/gobies (Group benefits: enjoy the version update 1 month in advance)
+Telegram Channel: https://t.me/joinchat/ENkApMqOonRhZjFl (Channel benefits: enjoy the version update 1 month in advance)
+WeChat Group: First add my personal WeChat: gobyteam, I will add everyone to the official WeChat group of Goby. (Group benefits: enjoy the version update 1 month in advance)
