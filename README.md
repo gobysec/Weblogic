@@ -1,4 +1,4 @@
-Artical: *[The Art of Cross-Languages: Weblogic Serialization Vulnerability and IIOP Protocol]([https://github.com/gobysec/Weblogic](https://github.com/gobysec/Weblogic/edit/main/Weblogic%20Serialization%20Vulnerability%20and%20IIOP%20Protocol.md))*
+Artical: *[The Art of Cross-Languages: Weblogic Serialization Vulnerability and IIOP Protocol](https://github.com/gobysec/Weblogic/blob/main/Weblogic%20Serialization%20Vulnerability%20and%20IIOP%20Protocol.md)*
 
 Abstract：The Weblogic serialization vulnerability mainly depends on the T3 and IIOP protocols, which have many issues in communication interaction, such as cross-language and network transmission, which can bring many inconveniences to vulnerability detection and exploitation. In the philosophy of WhiteHat Labs, vulnerability detection and exploitation is a creative work that should be implemented in the most concise and efficient way to ensure cross-platform and practicality of the vulnerability. Therefore, we have implemented a cross-language IIOP protocol communication solution to solve the serialization vulnerability problem.
 
