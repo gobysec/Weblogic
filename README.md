@@ -202,7 +202,7 @@ At WhiteCapSec Security Research Institute, vulnerability detection and exploita
 
 The vulnerabilities and features demonstrated in this article will be launched on Goby on April 18 (next Tuesday). Please pay attention to the Goby version update notification or WeChat community announcement at that time. 
 
-Goby Community Edition can be downloaded and experienced for free at https://gobysec.org.
+Goby Community Edition can be downloaded and experienced for free at https://gobies.org.
 
 
 Author: 14m3ta7k
