@@ -1,4 +1,4 @@
-# Research on WebLogic After-Deserialization
+# Weblogic CVE-2023-21931 vulnerability exploration technique: post-deserialization exploitation
 # overview
 
 In recent years, Weblogic deserialization vulnerabilities have been discovered and focused on the triggering point of deserialization. However, there are many points that involve deserialization but cannot be exploited in real-time, which are easily overlooked during regular vulnerability research. There have been further discussions in the industry about "post-deserialization" vulnerabilities, where seemingly unexploitable vulnerabilities can actually be exploited through subsequent techniques. For example, if the vulnerability is not triggered after performing a `bind()` or `rebind()` operation, you can try other methods such as `lookup()` or` lookupLink()` to trigger the vulnerability.
