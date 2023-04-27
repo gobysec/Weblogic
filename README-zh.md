@@ -1,4 +1,4 @@
-[English](https://github.com/gobysec/Weblogic/edit/main/README.md)｜ [中文](https://github.com/gobysec/Weblogic/edit/main/README-zh.md)
+[English](https://github.com/gobysec/Weblogic/blob/main/README.md)｜ [中文](https://github.com/gobysec/Weblogic/blob/main/README-zh.md)
 
 # WebLogic漏洞研究专题
 
