@@ -2,7 +2,7 @@
 
 # WebLogic漏洞研究专题
 
-## [*Weblogic CVE-2023-21931 漏洞挖掘技巧：后反序列化利用* ](https://github.com/gobysec/Weblogic/edit/main/WebLogic_CVE-2023-21931_zh_CN.md.md)
+## [*Weblogic CVE-2023-21931 漏洞挖掘技巧：后反序列化利用* ](https://github.com/gobysec/Weblogic/blob/main/WebLogic_CVE-2023-21931_zh_CN.md)
 
 摘要：近些年，Weblogic反序列化漏洞一直围绕着反序列化的触发点进行漏洞挖掘，事实上还有很多存在反序列化但无法实时利用的点，在大家平时的漏洞挖掘中容易忽略。在行业内也有一些关于”后反序列化“的进一步讨论，这些看似无法利用的漏洞，其实可以通过一些后续的技巧完成稳定的利用效果。例如，进行`bind()`或`rebind()`操作后，并没有触发漏洞，此时可以尝试其他方法如`lookup()`、`lookupLink()`等触发漏洞。
 通过这种思路我们发现了两个Weblogic的后反序列化漏洞（CVE-2023-21931、CVE-2023-21839），获得了Oracle的官方确认。本文以这两个Weblogic漏洞为例，分享"后反序列化漏洞"的利用思路。我们相信还有很多这类的漏洞在未来会逐渐被挖掘出来，希望本篇文章能够给大家一些启发。
